@@ -1,5 +1,7 @@
 package com.example.kgapp
 
+import android.content.Context
+import android.content.Intent
 import android.os.AsyncTask
 import android.os.Bundle
 import android.util.JsonReader
@@ -17,28 +19,33 @@ import org.json.JSONStringer
 import tech.gusavila92.websocketclient.WebSocketClient
 import java.lang.ref.WeakReference
 import java.net.URI
+import java.util.*
+import kotlin.collections.ArrayList
 import java.net.URISyntaxException as URISyntaxException1
 
-public class MessageListActivity : AppCompatActivity(){
+public class MessageListActivity : AppCompatActivity(), MsgAsyncCallback {
 
 
     private lateinit var webSocketClient: WebSocketClient
     private lateinit var mMessagerv: RecyclerView
     private lateinit var mMessageAdapter: MessageListAdapter
-    private lateinit var messageList: ArrayList<UserMessage>
-    private var js :String = ""
-    private lateinit var send : String
-    private lateinit var etBox : EditText
-    private lateinit var btSend : Button
+    lateinit var messageList: ArrayList<UserMessage>
+    private var js: String = ""
+    private lateinit var send: String
+    private lateinit var etBox: EditText
+    private lateinit var btSend: Button
+    private lateinit var currentUser : String
+    private lateinit var targetUser : String
 
 
-//    override fun onPreExecute() {
-//
-//    }
-//
-//    override fun onPostExecute(text: String) {
-//
-//    }
+    override fun onPreExecute() {
+
+    }
+
+    override fun onPostExecute(text: String) {
+
+        Log.d("A", text)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,45 +56,56 @@ public class MessageListActivity : AppCompatActivity(){
         btSend = findViewById(R.id.button_chatbox_send)
 
 
-
 //        createWebSocketClient()
 
-        var currentUser ="081804323015"
+        val bundle : Bundle = intent.extras ?: return
 
-//        var msgAsync : MsgAsync = MsgAsync(this)
-//        msgAsync.execute(currentUser)
+        if(bundle!=null){
+            println(bundle.getString("currentUser"))
+            currentUser = bundle.getString("currentUser").toString()
+            targetUser = bundle.get("targetUser").toString()
+        } else {
+            currentUser = "user"
+            targetUser = "user"
+        }
+
 
         mMessagerv = findViewById(R.id.reyclerview_message_list)
         mMessagerv.layoutManager = LinearLayoutManager(this) as RecyclerView.LayoutManager?
 
         messageList = MessagesData.getListMessages()
 
-
+//        msgAsync.execute(messageList)
+        var time = Timer()
+        var st = ScheduleTask(messageList, this)
+        time.schedule(st, 0,2500)
 
         mMessageAdapter = MessageListAdapter(this, messageList, currentUser)
         mMessagerv.adapter = mMessageAdapter
 
         btSend.setOnClickListener {
             send = etBox.text.toString()
-            if(send.equals("")){
-                Toast.makeText(this,"Isi dulu",Toast.LENGTH_SHORT).show()
-                if(messageList.size!=MessagesData.getListMessages().size) {
-                    for(x in messageList.size until (MessagesData.getListMessages().size)){
-                        println(messageList.size)
-                        println(MessagesData.getListMessages().size)
-                        messageList.add(MessagesData.getListMessages().get(x))
-                    }
+            if (send.equals("")) {
+                Toast.makeText(this, "Isi dulu", Toast.LENGTH_SHORT).show()
+//                if (messageList.size != MessagesData.getListMessages().size) {
+//                    for (x in messageList.size until (MessagesData.getListMessages().size)) {
+//                        println(messageList.size)
+//                        println(MessagesData.getListMessages().size)
+//                        messageList.add(MessagesData.getListMessages().get(x))
+//                    }
+//
+//                }
+//                mMessageAdapter.notifyDataSetChanged()
 
-                }
-                mMessageAdapter.notifyDataSetChanged()
-
-            } else{
-                createWebSocketClient(send)
-                Thread.sleep(300)
-                createWebSocketClient()
+            } else {
+                createWebSocketClient(send,currentUser,targetUser)
+                etBox.text.clear()
+//                Thread.sleep(300)
+//                createWebSocketClient()
 
             }
         }
+    }
 
 //        var js: String = "{\"key\":\"UYIOJNJIOI\",\"src\":\"081804323015\",\"dest\":\"081804323015\",\"msg\":\"hai halo\",\"msg_id\":\"2348797345897\",\"msg_time\":\"2019-05-29-18:30\"}"
 
@@ -95,46 +113,68 @@ public class MessageListActivity : AppCompatActivity(){
 //        msg = arrayOf("nur","url","Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.","created2","receiver")
 //        MessagesData.addMessage(msg)
 
-//    private class MsgAsync:AsyncTask<String, Void, String>{
-//        val LOG_ASYNC: String = "DemoSync"
-//        var myListener: WeakReference<MsgAsyncCallback>
-//        constructor(myListener: MsgAsyncCallback){
-//            this.myListener = WeakReference(myListener)
-//        }
-//
-//        override fun onPreExecute() {
-//            super.onPreExecute()
-//            Log.d(LOG_ASYNC, "status : onPreExecute")
-//
-//            val myListener = this.myListener.get()
-//            myListener?.onPreExecute()
-//        }
-//
-//        override fun doInBackground(vararg params: String): String {
-//            Log.d(LOG_ASYNC, "status : doInBackground")
-//            var output: String = ""
-//
-//            try {
-//                val input = params[0]
-//                output = "$input Selamat Belajar!!"
-//                Thread.sleep(5000)
-//            } catch (e: Exception) {
-//                Log.d(LOG_ASYNC, e.message)
-//            }
-//
-//            return output
-//        }
-//
-//        override fun onPostExecute(result: String) {
-//            super.onPostExecute(result)
-//            Log.d(LOG_ASYNC, "status : onPostExecute")
-//
-//            val myListener = this.myListener.get()
-//            myListener?.onPostExecute(result)
-//        }
+//----------------------------------------------------------------
+
+    private inner class MsgAsync : AsyncTask<ArrayList<UserMessage>, Void, String> {
+        val LOG_ASYNC: String = "MsgSync"
+        var myListener: WeakReference<MsgAsyncCallback>
+
+
+        constructor(myListener: MsgAsyncCallback) {
+            this.myListener = WeakReference(myListener)
+        }
+
+        override fun onPreExecute() {
+            super.onPreExecute()
+            Log.d(LOG_ASYNC, "status : onPreExecute")
+
+            val myListener = this.myListener.get()
+            myListener?.onPreExecute()
+        }
+
+        override fun doInBackground(vararg p0: ArrayList<UserMessage>): String {
+            Log.d(LOG_ASYNC, "status : doInBg")
+            createWebSocketClient()
+            Thread.sleep(1000)
+            if (p0.size != MessagesData.getListMessages().size) {
+                for (x in p0[0].size until (MessagesData.getListMessages().size)) {
+                    println(p0[0].size)
+                    println(MessagesData.getListMessages().size)
+                    messageList.add(MessagesData.getListMessages().get(x))
+                }
+            }
+            Thread.sleep(1000)
+            return ""
+        }
+
+        override fun onPostExecute(result: String) {
+            super.onPostExecute(result)
+            Log.d(LOG_ASYNC, "status : onPostExecute")
+            mMessageAdapter.notifyDataSetChanged()
+            val myListener = this.myListener.get()
+            myListener?.onPostExecute(result)
+        }
     }
 
-    private fun createWebSocketClient(msg: String) {
+//---------------------------------------------------------------
+
+    private inner class ScheduleTask : TimerTask{
+        var list: ArrayList<UserMessage>
+        var ctx: MsgAsyncCallback
+        constructor(a: ArrayList<UserMessage>, b: MsgAsyncCallback){
+            list = a
+            ctx = b
+
+        }
+
+        override fun run() {
+            MsgAsync(ctx).execute(list)
+        }
+
+    }
+
+
+    private fun createWebSocketClient(msg: String, user: String, target: String) {
 
         val uri: URI
         try {
@@ -149,9 +189,10 @@ public class MessageListActivity : AppCompatActivity(){
                 println("onOpen")
                 Log.d("a","hello world")
 //                webSocketClient.send("081804323015")
-//                webSocketClient.send("{\"key\":\"UYIOJNJIOI\",\"src\":\"081804323015\",\"dest\":\"081804323016\",\"msg\":\"hai halo\",\"msg_id\":\"2348797345897\",\"msg_time\":\"2019-05-29-18:30\"}")
-                webSocketClient.send("{\"key\":\"UYIOJNJIOI\",\"src\":\"081804323016\",\"dest\":\"081804323015\",\"msg\":\""+ msg+"\",\"msg_id\":\"2348797345897\",\"msg_time\":\"2019-05-29-18:30\"}")
-
+//                webSocketClient.send("{\"key\":\"UYIOJNJIOI\",\"src\":\"081804323015\",\"dest\":\"081804323016\",\"msg\":\""+ msg+"\",\"msg_id\":\"2348797345897\",\"msg_time\":\"2019-05-29-18:30\"}")
+                webSocketClient.send("{\"key\":\"UYIOJNJIOI\",\"src\":\"$user\",\"dest\":\"$target\",\"msg\":\"$msg\",\"msg_id\":\"2348797345897\",\"msg_time\":\"2019-05-29-18:30\"}")
+                var msgs = arrayOf(user,"url", msg,"19.00",target)
+                MessagesData.addMessage(msgs)
             }
 
             override fun onTextReceived(message: String) {
@@ -208,7 +249,7 @@ public class MessageListActivity : AppCompatActivity(){
         webSocketClient.connect()
     }
 
-    private fun createWebSocketClient() {
+    fun createWebSocketClient() {
 
         val uri: URI
         try {
@@ -222,7 +263,8 @@ public class MessageListActivity : AppCompatActivity(){
             override fun onOpen() {
                 println("onOpen")
                 Log.d("a","hello world")
-                webSocketClient.send("081804323015")
+//                webSocketClient.send("081804323015")
+                webSocketClient.send(currentUser)
 //                webSocketClient.send("{\"key\":\"UYIOJNJIOI\",\"src\":\"081804323015\",\"dest\":\"081804323016\",\"msg\":\"hai halo\",\"msg_id\":\"2348797345897\",\"msg_time\":\"2019-05-29-18:30\"}")
 //                webSocketClient.send(String.format("{\"key\":\"UYIOJNJIOI\",\"src\":\"081804323016\",\"dest\":\"081804323015\",\"msg\":\"%s\",\"msg_id\":\"2348797345897\",\"msg_time\":\"2019-05-29-18:30\"}",msg))
             }

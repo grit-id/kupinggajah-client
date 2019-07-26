@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout
+<LinearLayout
         xmlns:android="http://schemas.android.com/apk/res/android"
         xmlns:tools="http://schemas.android.com/tools"
         xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -8,23 +8,36 @@
         tools:context=".MainActivity"
         android:orientation="vertical">
 
-    <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv"
+    <ImageView
+            android:id="@+id/imgv"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:dividerHeight="0dp"
-            android:layout_below="@+id/sv">
+            android:layout_height="wrap_content"
+            />
 
-    </androidx.recyclerview.widget.RecyclerView>
+    <EditText
+            android:id="@+id/edttxt"
+            android:hint="Username"
+            android:layout_width="200dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            />
 
-    <SearchView
-            android:id="@+id/sv"
+    <EditText
+            android:id="@+id/edttxt2"
+            android:hint="Target"
+            android:layout_width="200dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            />
+
+    <Button
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:iconifiedByDefault="false"
-            android:layout_centerInParent="true"
-            android:layout_alignParentTop="true"
-    >
+            android:layout_gravity="center"
+            android:text="LOGIN"
+            android:id="@+id/btnlg"
+            />
 
-    </SearchView>
-</RelativeLayout>
+
+
+</LinearLayout>
